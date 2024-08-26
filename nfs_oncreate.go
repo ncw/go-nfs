@@ -39,9 +39,8 @@ func onCreate(ctx context.Context, w *response, userHandle Handler) error {
 		if err := xdr.Read(w.req.Body, &verf); err != nil {
 			return &NFSStatusError{NFSStatusInval, err}
 		}
-		Log.Errorf("failing create to indicate lack of support for 'exclusive' mode.")
-		// TODO: support 'exclusive' mode.
-		return &NFSStatusError{NFSStatusNotSupp, os.ErrPermission}
+		// We ignore the createverf3 which is the key to the lock
+		Log.Errorf("ignoring 'exclusive' mode on create file.")
 	} else {
 		// invalid
 		return &NFSStatusError{NFSStatusNotSupp, os.ErrInvalid}
@@ -88,9 +87,11 @@ func onCreate(ctx context.Context, w *response, userHandle Handler) error {
 
 	fp := userHandle.ToHandle(fs, newFile)
 	changer := userHandle.Change(fs)
-	if err := attrs.Apply(changer, fs, newFilePath); err != nil {
-		Log.Errorf("Error applying attributes: %v\n", err)
-		return &NFSStatusError{NFSStatusIO, err}
+	if attrs != nil {
+		if err := attrs.Apply(changer, fs, newFilePath); err != nil {
+			Log.Errorf("Error applying attributes: %v\n", err)
+			return &NFSStatusError{NFSStatusIO, err}
+		}
 	}
 
 	writer := bytes.NewBuffer([]byte{})
